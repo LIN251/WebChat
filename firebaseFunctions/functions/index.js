@@ -61,6 +61,18 @@ app.post('screams',(req, res) => {
 });
 
 // sign up route
+const isEmpty = (string) => {
+    if(string.trim() === '') return true;
+    else return false;
+}
+
+const isEmail = (email) =>{
+    const regEx = /^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$/;
+    if (email.match(regEx)) return true;
+    else return false;
+}
+
+
 let token, userID;
 app.post("/signup", (req,res)=>{
     const newUser = {
@@ -69,6 +81,31 @@ app.post("/signup", (req,res)=>{
         confirmPassword : req.body.confirmPassword,
         handle : req.body.handle,
     }
+    let errors = {};
+    if (isEmpty(newUser.email)){
+        errors.email = "Must not be empty"
+        // return res.status(400).json({email: "Must not be empty"})
+    }else if (!isEmail(newUser.email)){
+        errors.email = "Must be a valid email address"
+        // return res.status(400).json({email: "Must be a valid email address"})
+    }
+
+    if (isEmpty(newUser.password)){
+        errors.password = "Must not be empty"
+        // return res.status(400).json({password: "Must not be empty"})
+    }
+
+    if (newUser.password !== newUser.confirmPassword){
+        errors.confirmPassword = "Passwords must match"
+        // return res.status(400).json({confirmPassword: "Passwords must match"})
+    }
+
+    if (isEmpty(newUser.handle)){
+        errors.handle = "Must not be empty"
+        // return res.status(400).json({handle: "Must not be empty"})
+    }
+
+    if (Object.keys(errors).length > 0) return res.status(400).json(errors);
 
     db.doc(`/users/${newUser.handle}`).get()
     .then(doc=>{
@@ -101,6 +138,34 @@ app.post("/signup", (req,res)=>{
             return res.status(400).json({email: "Email is already in use"})
         }
         return res.status(500).json({error: error.code})
+    })
+})
+
+
+app.post("/login", (req,res)=>{
+    let errors = {};
+    const user = {
+        email: req.body.email,
+        password: req.body.password
+    }
+    if (isEmpty(user.email)) error.email = "Must not be empty";
+    if (isEmpty(user.password)) error.password = "Must not be empty";
+    if (Object.keys(errors).length > 0) return res.status(400).json(errors);
+
+    firebase.auth().signInWithEmailAndPassword(user.email, user.password)
+    .then(data=>{
+        return data.user.getIdToken();
+    })
+    .then(token=>{
+        return res.json({token})
+    })
+    .catch(error=>{
+        console.log(errors);
+        if(error.code === "auth/wrong-password"){
+            return res.status(403).json({general: "Wrong credentials, please try again"})
+        }else{
+            return res.status(500).json({error: error.code})
+        }
     })
 })
 
